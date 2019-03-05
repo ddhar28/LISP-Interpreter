@@ -55,7 +55,6 @@ function opParser (inp) {
       str = val[1]
     } else if ((val = strparse(str))) {
       if (env[val[0]] === undefined) return null
-      // console.log('symbol parsed')
       args.push(env[val[0]])
       str = val[1]
     } else if (str[0] === '(') {
@@ -65,12 +64,10 @@ function opParser (inp) {
     }
     if (!str.length) return null
   }
-  // console.log('operation finished...')
   return [env[op](...args), str]
 }
 
 function expParser (inp) {
-  // console.log('expression', inp)
   let str = inp.slice(0); let result
   while (!str.startsWith(')')) {
     if (str.startsWith('begin')) {
@@ -84,32 +81,25 @@ function expParser (inp) {
       str = result[1]
     } else break
   }
-  // console.log(result)
-  // console.log('returning expression...')
   return result
 }
 
 function evaluate (inp) {
-  let str = inp.slice(0); let result; let val// ; let count = 0
-  if (spaceparse(str.slice(1)) === ')') return ['()', '']
-  // console.log('evaluating...')
+  let str = inp.slice(0); let result; let val
   while (str.length && !str.startsWith(')')) {
     if (str.startsWith('(')) {
-      // count++
       if (!(result = expParser(spaceparse(str.slice(1))))) return null
       str = result[1]
-      // console.log(result)
     }
     if ((val = numparse(str))) {
-      result = [+val[0], val[1]]; break
+      result = [+val[0], val[1]]; str = val[1]; break
     }
     if ((val = strparse(str))) {
-      result = (env[val[0]] === undefined ? null : [env[val[0]], val[1]]); break
+      result = (env[val[0]] === undefined ? null : [env[val[0]], val[1]]); str = val[1]; break
     }
-    if (!str[0] === ')') str = spaceparse(str.slice(1))
   }
-  // console.log('ending evaluation...')
-  return [result[0], spaceparse(str.slice(1))]
+  str = spaceparse(str.slice(1))
+  return [result[0], str]
 }
 
 prompt(function (input) {
