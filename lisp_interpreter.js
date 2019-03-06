@@ -15,12 +15,12 @@ function spaceparse (inp) {
 
 function numparse (inp) {
   let result
-  return (result = inp.match(/^-?\d+\.?\d*/)) && [result[0], spaceparse(inp.slice(result[0].length))]
+  return (result = inp.match(/^(-?\d+\.?\d*)/)) && [+result[0], spaceparse(inp.slice(result[0].length))]
 }
 
 function strparse (inp) {
   let result
-  return (result = inp.match(/^[a-zA-z]\w*/)) && [result[0], spaceparse(inp.slice(result[0].length))]
+  return (result = inp.match(/^([a-zA-z]\w*)/)) && [result[0], spaceparse(inp.slice(result[0].length))]
 }
 
 let env = {
@@ -36,6 +36,16 @@ let env = {
   'pi': Math.PI
 }
 
+function value (inp) {
+  let val
+  if (!(val = numparse(inp))) {
+    if (!(val = strparse(inp))) {
+      if ((val = evaluate(inp)) === null) return null
+    }
+  }
+  return val
+}
+
 function defineParser (inp) {
   let symbol; let str = inp.slice(0); let value
   if (!(symbol = strparse(inp))) return null
@@ -45,23 +55,35 @@ function defineParser (inp) {
   return value[1]
 }
 
+function ifParser (inp) {
+  let test; let val; let alt
+  if (!(test = value(inp))) return null
+  val = value(test[1])
+  alt = value(val[1])
+  if (test[0]) {
+    if (!val) return null
+    return [val[0], alt[1]]
+  } else {
+    if (!alt) return null
+    return alt
+  }
+}
+
 function opParser (inp) {
   let str = inp.slice(0); let op; let args = []; let val
   if (env[(op = str[0])] === undefined) return null
   str = spaceparse(str.slice(1))
   while (!str.startsWith(')')) {
     if ((val = numparse(str))) {
-      args.push(+val[0])
-      str = val[1]
+      args.push(val[0])
     } else if ((val = strparse(str))) {
       if (env[val[0]] === undefined) return null
       args.push(env[val[0]])
-      str = val[1]
     } else if (str[0] === '(') {
       if (!(val = evaluate(str.slice(0)))) return null
       args.push(val[0])
-      str = val[1]
     }
+    str = val[1]
     if (!str.length) return null
   }
   return [env[op](...args), str]
@@ -70,14 +92,17 @@ function opParser (inp) {
 function expParser (inp) {
   let str = inp.slice(0); let result
   while (!str.startsWith(')')) {
-    if (str.startsWith('begin')) {
-      if (!(result = evaluate(spaceparse(inp.slice(5))))) return null
+    if (str.startsWith('begin ')) {
+      if (!(result = evaluate(spaceparse(inp.slice(6))))) return null
       str = result[1]
-    } else if (str.startsWith('define')) {
-      if (!(str = defineParser(spaceparse(inp.slice(6))))) return null
+    } else if (str.startsWith('define ')) {
+      if (!(str = defineParser(spaceparse(inp.slice(7))))) return null
       result = ['', str]
-    } else if (str.match(/^(\+|-|\/|\*|<|>|=|<=|>=)/)) {
-      if (!(result = opParser(spaceparse(str)))) return null
+    } else if (str.match(/^(\+|-|\/|\*|<|>|=|<=|>=) /)) {
+      if (!(result = opParser(str))) return null
+      str = result[1]
+    } else if (str.startsWith('if ')) {
+      if (!(result = ifParser(spaceparse(str.slice(3))))) return null
       str = result[1]
     } else break
   }
@@ -92,7 +117,7 @@ function evaluate (inp) {
       str = result[1]
     }
     if ((val = numparse(str))) {
-      result = [+val[0], val[1]]; str = val[1]; break
+      result = [val[0], val[1]]; str = val[1]; break
     }
     if ((val = strparse(str))) {
       result = (env[val[0]] === undefined ? null : [env[val[0]], val[1]]); str = val[1]; break
@@ -104,6 +129,7 @@ function evaluate (inp) {
 
 prompt(function (input) {
   let result = evaluate(input)
+  // console.log('tata'.slice(0, -1))
   console.log(result ? result[0] : 'Invalid')
   process.exit()
 })
