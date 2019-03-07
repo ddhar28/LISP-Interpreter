@@ -33,7 +33,8 @@ let env = {
   '=': (x, y) => x === y,
   '>=': (x, y) => x >= y,
   '<=': (x, y) => x <= y,
-  'pi': Math.PI
+  'pi': Math.PI,
+  'list': (...list) => list
 }
 
 function value (inp) {
@@ -69,10 +70,22 @@ function ifParser (inp) {
   }
 }
 
+function disp (inp) {
+  let str = inp.slice(0); let count = 1; let result = ''
+  while (count) {
+    if (str.startsWith('(')) count++
+    else if (str.startsWith(')')) count--
+    if (!count) break
+    result += str[0]; str = str.slice(1)
+    if (!str.length) return null
+  }
+  return [result, str]
+}
+
 function opParser (inp) {
   let str = inp.slice(0); let op; let args = []; let val
-  if (env[(op = str[0])] === undefined) return null
-  str = spaceparse(str.slice(1))
+  if (env[(op = str.slice(0, str.indexOf(' ')))] === undefined) return null
+  str = spaceparse(str.slice(op.length))
   while (!str.startsWith(')')) {
     if ((val = numparse(str))) {
       args.push(val[0])
@@ -80,7 +93,7 @@ function opParser (inp) {
       if (env[val[0]] === undefined) return null
       args.push(env[val[0]])
     } else if (str[0] === '(') {
-      if (!(val = evaluate(str.slice(0)))) return null
+      if (!(val = evaluate(str))) return null
       args.push(val[0])
     }
     str = val[1]
@@ -98,11 +111,14 @@ function expParser (inp) {
     } else if (str.startsWith('define ')) {
       if (!(str = defineParser(spaceparse(inp.slice(7))))) return null
       result = ['', str]
-    } else if (str.match(/^(\+|-|\/|\*|<|>|=|<=|>=) /)) {
+    } else if (str.match(/^(\+|-|\/|\*|<|>|=|<=|>=|list) /)) {
       if (!(result = opParser(str))) return null
       str = result[1]
     } else if (str.startsWith('if ')) {
       if (!(result = ifParser(spaceparse(str.slice(3))))) return null
+      str = result[1]
+    } else if (str.startsWith('quote ')) {
+      if (!(result = disp(spaceparse(str.slice(6))))) return null
       str = result[1]
     } else break
   }
@@ -117,7 +133,7 @@ function evaluate (inp) {
       str = result[1]
     }
     if ((val = numparse(str))) {
-      result = [val[0], val[1]]; str = val[1]; break
+      result = val; str = val[1]; break
     }
     if ((val = strparse(str))) {
       result = (env[val[0]] === undefined ? null : [env[val[0]], val[1]]); str = val[1]; break
@@ -129,7 +145,6 @@ function evaluate (inp) {
 
 prompt(function (input) {
   let result = evaluate(input)
-  // console.log('tata'.slice(0, -1))
   console.log(result ? result[0] : 'Invalid')
   process.exit()
 })
