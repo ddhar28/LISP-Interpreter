@@ -38,10 +38,14 @@ let env = {
 }
 
 function value (inp) {
+  if (inp === null) return null
   let val
   if (!(val = numparse(inp))) {
     if (!(val = strparse(inp))) {
       if ((val = evaluate(inp)) === null) return null
+    } else {
+      if (env[val[0]] === undefined) return null
+      val[0] = env[val[0]]
     }
   }
   return val
@@ -59,8 +63,9 @@ function defineParser (inp) {
 function ifParser (inp) {
   let test; let val; let alt
   if (!(test = value(inp))) return null
-  val = value(test[1])
-  alt = value(val[1])
+  if (!(val = value(test[1]))) return null
+  if (!(alt = value(val[1]))) return null
+  if (!alt[1].startsWith(')')) return null
   if (test[0]) {
     if (!val) return null
     return [val[0], alt[1]]
@@ -83,16 +88,13 @@ function disp (inp) {
 }
 
 function opParser (inp) {
+  if (inp === null) return null
   let str = inp.slice(0); let op; let args = []; let val
   if (env[(op = str.slice(0, str.indexOf(' ')))] === undefined) return null
   str = spaceparse(str.slice(op.length))
   while (!str.startsWith(')')) {
-    if ((val = numparse(str))) {
-      args.push(val[0])
-    } else if ((val = strparse(str))) {
-      if (env[val[0]] === undefined) return null
-      args.push(env[val[0]])
-    } else if (str[0] === '(') {
+    if ((val = value(str))) args.push(val[0])
+    else {
       if (!(val = evaluate(str))) return null
       args.push(val[0])
     }
@@ -103,13 +105,14 @@ function opParser (inp) {
 }
 
 function expParser (inp) {
+  if (inp === null) return null
   let str = inp.slice(0); let result
   while (!str.startsWith(')')) {
     if (str.startsWith('begin ')) {
       if (!(result = evaluate(spaceparse(inp.slice(6))))) return null
       str = result[1]
     } else if (str.startsWith('define ')) {
-      if (!(str = defineParser(spaceparse(inp.slice(7))))) return null
+      str = defineParser(spaceparse(inp.slice(7)))
       result = ['', str]
     } else if (str.match(/^(\+|-|\/|\*|<|>|=|<=|>=|list) /)) {
       if (!(result = opParser(str))) return null
@@ -126,11 +129,14 @@ function expParser (inp) {
 }
 
 function evaluate (inp) {
+  if (inp === null) return null
   let str = inp.slice(0); let result; let val
   while (str.length && !str.startsWith(')')) {
     if (str.startsWith('(')) {
       if (!(result = expParser(spaceparse(str.slice(1))))) return null
       str = result[1]
+      if (str.indexOf(')') === -1) return null
+      str = spaceparse(str.slice(1))
     }
     if ((val = numparse(str))) {
       result = val; str = val[1]; break
@@ -139,7 +145,6 @@ function evaluate (inp) {
       result = (env[val[0]] === undefined ? null : [env[val[0]], val[1]]); str = val[1]; break
     }
   }
-  str = spaceparse(str.slice(1))
   return [result[0], str]
 }
 
