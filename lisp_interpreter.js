@@ -42,7 +42,7 @@ function value (inp) {
   let val
   if (!(val = numparse(inp))) {
     if (!(val = strparse(inp))) {
-      if ((val = evaluate(inp)) === null) return null
+      if ((val = expParser(spaceparse(inp.slice(1)))) === null) return null
     } else {
       if (env[val[0]] === undefined) return null
       val[0] = env[val[0]]
@@ -62,8 +62,12 @@ function defineParser (inp) {
 
 function ifParser (inp) {
   let test; let val; let alt
+  // console.log('input', inp)
   if (!(test = value(inp))) return null
+  if (test[1].startsWith(')')) test[1] = spaceparse(test[1].slice(1))
+  // console.log('test', test)
   if (!(val = value(test[1]))) return null
+  // console.log('val', val)
   if (!(alt = value(val[1]))) return null
   if (!alt[1].startsWith(')')) return null
   if (test[0]) {
@@ -93,18 +97,23 @@ function opParser (inp) {
   if (env[(op = str.slice(0, str.indexOf(' ')))] === undefined) return null
   str = spaceparse(str.slice(op.length))
   while (!str.startsWith(')')) {
-    if ((val = value(str))) args.push(val[0])
-    else {
-      if (!(val = evaluate(str))) return null
-      args.push(val[0])
+    if (str.startsWith('(')) {
+      let exp = expParser(spaceparse(str.slice(1)))
+      args.push(exp[0])
+      str = spaceparse(exp[1].slice(1))
     }
-    str = val[1]
+    if ((val = value(str))) {
+      args.push(val[0])
+      str = val[1]
+    }
     if (!str.length) return null
   }
+  // console.log('exiting operation', env[op](...args), str)
   return [env[op](...args), str]
 }
 
 function expParser (inp) {
+  // console.log('exp', inp)
   if (inp === null) return null
   let str = inp.slice(0); let result
   while (!str.startsWith(')')) {
@@ -125,16 +134,19 @@ function expParser (inp) {
       str = result[1]
     } else break
   }
+  // console.log('exit exp', result)
   return result
 }
 
 function evaluate (inp) {
+  // console.log('eval', inp)
   if (inp === null) return null
   let str = inp.slice(0); let result; let val
   while (str.length && !str.startsWith(')')) {
     if (str.startsWith('(')) {
       if (!(result = expParser(spaceparse(str.slice(1))))) return null
       str = result[1]
+      // console.log('received exp', result)
       if (str.indexOf(')') === -1) return null
       str = spaceparse(str.slice(1))
     }
@@ -145,7 +157,9 @@ function evaluate (inp) {
       result = (env[val[0]] === undefined ? null : [env[val[0]], val[1]]); str = val[1]; break
     }
   }
-  return [result[0], str]
+  // console.log('exit eval', result)
+  if (!result) return null
+  return [result[0], spaceparse(str)]
 }
 
 prompt(function (input) {
