@@ -79,14 +79,15 @@ function ifParser (inp, env = globalEnv) {
   if (!(val = value(test[1], env))) return null
   if (val[1].startsWith(')')) val[1] = spaceparse(val[1].slice(1))
   console.log('val', val)
-  if (!(alt = value(val[1], env))) return null
+  alt = disp(val[1])
+  // if (!(alt = value(val[1], env))) return null
   console.log('alt', alt)
   if (!alt[1].startsWith(')')) return null
   if (test[0]) {
     if (!val) return null
     return [val[0], alt[1]]
   } else {
-    if (!alt) return null
+    if (!(alt = value(val[1], env))) return null
     return alt
   }
 }
@@ -102,10 +103,12 @@ function lambda (inp, env = globalEnv) {
   }
   for (let x of args) obj[x] = null
   str = spaceparse(str.slice(str.indexOf('(') + 1))
+  // console.log('starting def', str)
   while (count) {
     if (str.startsWith('(')) count++
     if (str.startsWith(')')) count--
     def += str[0]
+    // console.log(def)
     if (!count) break
     str = str.slice(1)
     if (!str.length) return null
@@ -128,6 +131,7 @@ function disp (inp) {
 }
 
 function opParser (inp, env = globalEnv) {
+  console.log('operation', inp)
   if (inp === null) return null
   let str = inp.slice(0); let op; let args = []; let val
   if (findparent((op = str.slice(0, str.indexOf(' '))), env) === undefined) return null
@@ -137,27 +141,27 @@ function opParser (inp, env = globalEnv) {
       let exp = expParser(spaceparse(str.slice(1)), env)
       args.push(exp[0])
       str = spaceparse(exp[1].slice(1))
-    }
-    if ((val = value(str, env))) {
+    } else if ((val = value(str, env))) {
       args.push(val[0])
       str = val[1]
     } else return null
+    console.log(args, str)
     if (!str.length) return null
   }
-  // console.log('exiting operation', env[op](...args), str)
+  console.log('exiting operation', op, args)
   return [findparent(op, env)(...args), str]
 }
 
 function func (inp, env = globalEnv) {
-  console.log('received func', inp); let i = 0
+  // console.log('received func', inp)
+  let i = 0
   let str = inp[1].slice(0); let args = []; let val
   while (!str.startsWith(')')) {
     if (str.startsWith('(')) {
       let exp = expParser(spaceparse(str.slice(1)), env)
       args.push(exp[0])
       str = spaceparse(exp[1].slice(1))
-    }
-    if ((val = value(str, env))) {
+    } else if ((val = value(str, env))) {
       args.push(val[0])
       str = val[1]
     } else return null
@@ -165,8 +169,10 @@ function func (inp, env = globalEnv) {
   }
   args.push(inp[0].def, inp[0].parent)
   for (let index in inp[0]) inp[0][index] = args[i++]
-  console.log(inp[0], str)
-  return [evaluate(inp[0].def, inp[0]), spaceparse(str)]
+  // console.log(inp[0], str)
+  let result = evaluate(inp[0].def, inp[0])
+  console.log('function returns', spaceparse(str))
+  return [result[0], spaceparse(str)]
 }
 
 function expParser (inp, env = globalEnv) {
@@ -194,6 +200,7 @@ function expParser (inp, env = globalEnv) {
       str = result[1]
     } else if ((result = strparse(str))) {
       if (!result || findparent(result[0], env) === undefined || typeof (findparent(result[0], env)) !== 'object') return null
+      console.log('function encountered')
       result = func([findparent(result[0], env), result[1]], env)
       str = result[1]
     }
@@ -226,11 +233,12 @@ function evaluate (inp, env = globalEnv) {
   }
   console.log('exit eval', result[0], spaceparse(str))
   if (!result) return null
+  // if (str === '') return result[0]
   return [result[0], spaceparse(str)]
 }
 
 function output (result) {
-  if (result.length > 1) return output(result[0])
+  if (typeof (result) === 'object' && result.length > 1) return output(result[0])
   return result
 }
 
