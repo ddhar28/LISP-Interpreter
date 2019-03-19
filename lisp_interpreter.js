@@ -217,15 +217,10 @@ function evaluate (inp, env = globalEnv) {
   return [result[0], spaceparse(str)]
 }
 
-function output (result) {
-  if (typeof (result) === 'object' && result.length > 1) return output(result[0])
-  return result
-}
-
 rl.prompt()
 rl.on('line', (input) => {
   input = input.trim()
   let result = evaluate(input, globalEnv)
-  console.log(!result ? 'Invalid' : output(result))
+  console.log(!result || result[1] !== '' ? 'Invalid' : result[0])
   rl.prompt()
 })
